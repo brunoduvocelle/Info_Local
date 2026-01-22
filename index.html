@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>AFP PRO - Scan Régional Hauts-de-France (V4.1)</title>
+    <title>AFP PRO - Scan Régional Hauts-de-France (V4.2)</title>
     <style>
         :root {
             --bg: #050505; --panel: #111; --border: #2a2a2a;
@@ -131,11 +131,11 @@
                     <option value="24">1 jour</option>
                     <option value="48">2 jours</option>
                     <option value="72">3 jours</option>
-                    <option value="96">4 jours</option>
                     <option value="120">5 jours</option>
-                    <option value="144">6 jours</option>
-                    <option value="168">7 jours</option>
                     <option value="192" selected>8 jours</option>
+                    <option value="240">10 jours</option>
+                    <option value="288">12 jours</option>
+                    <option value="360">15 jours</option>
                 </select>
             </div>
         </div>
@@ -212,7 +212,7 @@
                     this.renderSourceList();
                     this.updateSettings();
                     this.manualScan();
-                    this.log("Moteur V4.1 : Fenêtre d'observation 8 jours activée.", "info");
+                    this.log("Moteur V4.2 : Fenêtre d'observation étendue (1-15j) disponible.", "info");
                 },
 
                 renderSourceList() {
@@ -270,7 +270,8 @@
                     if (isForced) {
                         this.data = [];
                         this.registry.clear();
-                        document.getElementById('feed').innerHTML = '<div style="text-align:center; padding-top:100px; color:#444;"><h2>SCAN PROFOND (8 JOURS) EN COURS...</h2></div>';
+                        const days = Math.floor(this.config.historyHours / 24);
+                        document.getElementById('feed').innerHTML = `<div style="text-align:center; padding-top:100px; color:#444;"><h2>SCAN PROFOND (${days} JOURS) EN COURS...</h2></div>`;
                     }
                     await Promise.allSettled(this.sources.map(src => {
                         if (src.active) return this.fetchSource(src);
