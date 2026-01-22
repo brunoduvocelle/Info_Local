@@ -2,67 +2,147 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>AFP PRO - Veille Nord (V3.2 Force)</title>
+    <title>AFP PRO - Scan Régional Hauts-de-France (V4.1)</title>
     <style>
         :root {
             --bg: #050505; --panel: #111; --border: #2a2a2a;
             --accent: #0070f3; --text: #e0e0e0; --success: #00ff41; --fail: #ff3333;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
+        
         body { 
-            font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text);
-            display: grid; grid-template-columns: 1fr 340px; height: 100vh; overflow: hidden;
+            font-family: 'Segoe UI', system-ui, sans-serif; 
+            background: var(--bg); color: var(--text);
+            display: grid; 
+            grid-template-columns: 1fr 340px; /* PC */
+            height: 100vh; overflow: hidden;
         }
+
         @media (max-width: 900px) {
             body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; overflow-y: auto; }
-            aside { border-left: none !important; order: -1; height: auto !important; }
+            aside { border-left: none !important; border-bottom: 1px solid var(--border); height: auto !important; order: -1; }
+            #feed { height: auto !important; }
         }
-        #feed { padding: 20px; overflow-y: auto; background: radial-gradient(circle at top left, #1a1a1a 0%, var(--bg) 40%); }
+
+        #feed { 
+            padding: 20px; overflow-y: auto; 
+            background: radial-gradient(circle at top left, #1a1a1a 0%, var(--bg) 40%);
+        }
+
         .news-card {
-            background: var(--panel); border: 1px solid var(--border); padding: 15px; margin-bottom: 12px; 
-            border-radius: 6px; border-left: 3px solid #444; cursor: pointer; animation: fadeIn 0.4s ease;
+            background: var(--panel); border: 1px solid var(--border); 
+            padding: 15px; margin-bottom: 12px; border-radius: 6px;
+            border-left: 3px solid #444; position: relative;
+            animation: fadeIn 0.4s ease; cursor: pointer;
         }
         .news-card:hover { border-left-color: var(--accent); background: #161616; }
+        
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; } }
-        .meta { display: flex; justify-content: space-between; font-size: 11px; color: #777; margin-bottom: 6px; font-weight: bold; }
+
+        .meta { display: flex; justify-content: space-between; font-size: 11px; color: #777; margin-bottom: 6px; text-transform: uppercase; font-weight: bold; }
+        .source-badge { color: var(--accent); max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .time-badge { color: #888; font-family: monospace; }
+        
         .title { font-size: 1.05rem; color: #fff; margin-bottom: 6px; line-height: 1.3; }
         .desc { font-size: 0.85rem; color: #999; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        aside { background: #000; border-left: 1px solid var(--border); display: flex; flex-direction: column; padding: 15px; gap: 15px; }
+
+        aside { 
+            background: #000; border-left: 1px solid var(--border); 
+            display: flex; flex-direction: column; padding: 15px; gap: 15px;
+            overflow-y: auto;
+        }
+
         .panel-box { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
         .stat-big { font-size: 24px; font-weight: bold; color: var(--success); }
-        .stat-label { font-size: 9px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
-        .dot { width: 8px; height: 8px; border-radius: 50%; background: #333; display: inline-block; margin-right: 5px; }
-        .dot.ok { background: var(--success); box-shadow: 0 0 5px var(--success); }
-        .dot.err { background: var(--fail); box-shadow: 0 0 5px var(--fail); }
-        .log-container { flex: 1; min-height: 120px; overflow-y: auto; font-family: monospace; font-size: 10px; color: #555; border-top: 1px solid var(--border); padding-top: 10px; }
-        .log-entry { margin-bottom: 3px; border-bottom: 1px solid #111; }
-        .log-entry.info { color: #0070f3; }
-        .log-entry.err { color: var(--fail); }
-        button { width: 100%; padding: 10px; background: var(--accent); color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11px; }
-        button:disabled { opacity: 0.3; }
+        .stat-label { font-size: 9px; color: #666; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 1px;}
+
+        .control-group { margin-top: 8px; }
+        .control-label { font-size: 10px; color: #aaa; display: block; margin-bottom: 4px; }
+        select {
+            width: 100%; background: #000; color: #fff; border: 1px solid #333;
+            padding: 6px; border-radius: 4px; font-size: 11px; cursor: pointer;
+        }
+
+        .source-list { display: grid; grid-template-columns: 1fr; gap: 5px; margin-top: 10px; max-height: 300px; overflow-y: auto; padding-right: 5px; }
+        .source-item { 
+            display: flex; justify-content: space-between; align-items: center; 
+            font-size: 9px; padding: 5px 8px; background: #080808; border-radius: 4px; border: 1px solid #1a1a1a;
+        }
+        .source-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+        .source-controls { display: flex; align-items: center; gap: 8px; }
+        
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: #333; transition: all 0.3s ease; flex-shrink: 0; }
+        .dot.ok { background: var(--success); box-shadow: 0 0 6px var(--success); }
+        .dot.err { background: var(--fail); }
+
+        .log-container { 
+            flex: 1; min-height: 100px; overflow-y: auto; font-family: monospace; font-size: 10px; 
+            color: #555; border-top: 1px solid var(--border); padding-top: 10px; 
+        }
+        .log-entry { margin-bottom: 3px; border-bottom: 1px solid #111; padding-bottom: 2px; }
+
+        button {
+            width: 100%; padding: 10px; background: var(--accent); color: white;
+            border: none; border-radius: 4px; font-weight: bold; cursor: pointer;
+            margin-top: 8px; font-size: 11px;
+        }
+        button.secondary { background: #222; color: #ccc; margin-top: 5px; }
+
         #modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 1000; }
-        .modal-content { width: 90%; max-width: 650px; background: #111; padding: 25px; border-radius: 10px; border: 1px solid #333; }
+        .modal-content { width: 90%; max-width: 650px; background: #111; border: 1px solid #333; padding: 20px; border-radius: 10px; position: relative; max-height: 90vh; overflow-y: auto; }
+        .btn-back { background: #222; color: #fff; border: 1px solid #444; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-size: 12px; margin-bottom: 15px; }
+
+        input[type="checkbox"] { cursor: pointer; accent-color: var(--accent); }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
     </style>
 </head>
 <body>
 
     <main id="feed">
         <div style="text-align:center; padding-top:100px; color:#444;">
-            <h2 id="status-msg">FORÇAGE PROTOCOLE...</h2>
-            <p>Tentative multi-canaux en cours</p>
+            <h2>SYSTÈME D'ANALYSE HAUTS-DE-FRANCE</h2>
+            <p>Initialisation des 46 flux de données...</p>
         </div>
     </main>
 
     <aside>
         <div class="panel-box">
-            <div class="stat-label">Flux Actualisé</div>
+            <div class="stat-label">Dépêches Filtrées</div>
             <div id="total-count" class="stat-big">0</div>
-            <button id="scan-btn" onclick="App.manualScan()">RELANCER LE FORÇAGE</button>
+            <button onclick="App.manualScan(true)">LANCER LE SCAN GLOBAL</button>
+            <button class="secondary" onclick="App.copyNews()">COPIER LA SYNTHÈSE</button>
         </div>
 
         <div class="panel-box">
-            <div class="stat-label">Réseau Diagnostic</div>
-            <div id="proxy-status" style="font-size: 10px; margin-top: 5px;"></div>
+            <div class="stat-label">CONFIGURATION</div>
+            <div class="control-group">
+                <label class="control-label">FRÉQUENCE</label>
+                <select id="freq-select" onchange="App.updateSettings()">
+                    <option value="30000">30 secondes</option>
+                    <option value="60000" selected>1 minute</option>
+                    <option value="300000">5 minutes</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label class="control-label">HISTORIQUE D'OBSERVATION</label>
+                <select id="hist-select" onchange="App.updateSettings()">
+                    <option value="24">1 jour</option>
+                    <option value="48">2 jours</option>
+                    <option value="72">3 jours</option>
+                    <option value="96">4 jours</option>
+                    <option value="120">5 jours</option>
+                    <option value="144">6 jours</option>
+                    <option value="168">7 jours</option>
+                    <option value="192" selected>8 jours</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="panel-box">
+            <div class="stat-label">SOURCES ACTIVES (<span id="source-count">0</span>)</div>
+            <div class="source-list" id="source-status"></div>
         </div>
 
         <div class="log-container" id="logs"></div>
@@ -70,152 +150,234 @@
 
     <div id="modal">
         <div class="modal-content">
-            <button onclick="App.closeModal()" style="margin-bottom:15px; background:#222;">← FERMER</button>
+            <button class="btn-back" onclick="App.closeModal()">← RETOUR AU FLUX</button>
             <div id="modal-text"></div>
         </div>
     </div>
 
     <script>
-        const App = {
-            data: [],
-            registry: new Set(),
-            isScanning: false,
-            targetUrl: "https://www.francebleu.fr/rss/radio/nord/actu",
-            
-            // Stratégie de contournement agressive
-            proxies: [
-                { name: "Bridge-1", url: u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}` },
-                { name: "Bridge-2", url: u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}&_=${Date.now()}` },
-                { name: "Bridge-3", url: u => `https://thingproxy.freeboard.io/fetch/${u}` },
-                { name: "Bridge-4", url: u => `https://corsproxy.io/?${encodeURIComponent(u)}` }
-            ],
-
-            init() {
-                this.log("Logiciel de veille initialisé", "info");
-                this.manualScan();
-                setInterval(() => this.manualScan(), 120000); // Auto-refresh 2min
-            },
-
-            log(msg, type = '') {
-                const el = document.getElementById('logs');
-                const div = document.createElement('div');
-                div.className = `log-entry ${type}`;
-                div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-                el.prepend(div);
-            },
-
-            async manualScan() {
-                if(this.isScanning) return;
-                this.isScanning = true;
-                document.getElementById('scan-btn').disabled = true;
-                document.getElementById('proxy-status').innerHTML = '';
+        {
+            const App = {
+                data: [],
+                registry: new Set(),
+                timer: null,
+                config: { freq: 60000, historyHours: 192 },
                 
-                let feedData = null;
+                sources: [
+                    { id: 'gn-picardie', name: "GN Picardie", url: "https://news.google.com/rss/search?tbm=nws&q=Picardie&hl=fr&gl=FR&ceid=FR:fr", active: true },
+                    { id: 'gn-lille', name: "GN Lille", url: "https://news.google.com/rss/search?tbm=nws&q=Lille&hl=fr&gl=FR&ceid=FR:fr", active: true },
+                    { id: 'gn-hdf', name: "GN Hauts-de-France", url: "https://news.google.com/rss/search?tbm=nws&q=Hauts-de-France&hl=fr&gl=FR&ceid=FR:fr", active: true },
+                    { id: 'flip-picardie', name: "Flipboard Picardie", url: "https://flipboard.com/topic/fr-picardie.rss", active: true },
+                    { id: 'flip-lille', name: "Flipboard Lille", url: "https://flipboard.com/topic/fr-lille.rss", active: true },
+                    { id: 'flip-hdf', name: "Flipboard Hauts-de-France", url: "https://flipboard.com/topic/fr-hautsdefrance.rss", active: true },
+                    { id: 'mv-lille1', name: "MaVille Lille (Loc)", url: "https://lille.maville.com/flux/rss/actu.php?c=loc&code=li", active: true },
+                    { id: 'mv-lille2', name: "MaVille Lille (Actu)", url: "https://lille.maville.com/flux/rss/actu.php?xtor=RSS-18&c=loc&code=li", active: true },
+                    { id: 'actu-lille', name: "Lille Actu", url: "https://feeds.feedburner.com/LilleActu-LactualitLocale-Actufr", active: true },
+                    { id: 'parisien-60', name: "Le Parisien Oise", url: "https://feeds.leparisien.fr/leparisien/rss/oise-60", active: true },
+                    { id: 'actu-abbeville', name: "Journal d'Abbeville", url: "https://feeds.feedburner.com/LeJournalDabbeville-LactualitLocale-Actufr", active: true },
+                    { id: 'humanite-lille', name: "L'Humanité Lille", url: "https://humanite.fr/mot-cle/lille/feed", active: true },
+                    { id: 'fb-pic-info', name: "FB Picardie Info", url: "https://francebleu.fr/rss/picardie/rubrique/infos.xml", active: true },
+                    { id: 'fb-pic-une', name: "FB Picardie Une", url: "https://francebleu.fr/rss/picardie/a-la-une.xml", active: true },
+                    { id: 'fb-nord-info', name: "FB Nord Info", url: "https://francebleu.fr/rss/nord/rubrique/infos.xml", active: true },
+                    { id: 'fb-nord-une', name: "FB Nord Une", url: "https://francebleu.fr/rss/nord/a-la-une.xml", active: true },
+                    { id: 'f3-npc', name: "F3 Nord Pas-de-Calais", url: "https://france3-regions.franceinfo.fr/hauts-de-france/nord-pas-calais/rss", active: true },
+                    { id: 'f3-lille-m', name: "F3 Lille Métropole", url: "https://france3-regions.franceinfo.fr/hauts-de-france/nord-0/lille-metropole/rss", active: true },
+                    { id: 'f3-lille', name: "F3 Lille", url: "https://france3-regions.franceinfo.fr/hauts-de-france/nord-0/lille/rss", active: true },
+                    { id: 'f3-hdf-soc', name: "F3 HDF Société", url: "https://france3-regions.franceinfo.fr/societe/rss?r=hauts-de-france", active: true },
+                    { id: 'f3-hdf-actu', name: "F3 HDF Actu", url: "https://france3-regions.franceinfo.fr/hauts-de-france/actu/rss", active: true },
+                    { id: 'f3-calais', name: "F3 Calais", url: "https://france3-regions.franceinfo.fr/hauts-de-france/pas-calais/calais/rss", active: true },
+                    { id: 'f3-aisne', name: "F3 Aisne", url: "https://france3-regions.franceinfo.fr/hauts-de-france/aisne/rss", active: true },
+                    { id: 'fi-lille', name: "France Info Lille", url: "https://franceinfo.fr/france/hauts-de-france/nord/lille.rss", active: true },
+                    { id: 'fi-hdf', name: "France Info HDF", url: "https://franceinfo.fr/france/hauts-de-france.rss", active: true },
+                    { id: 'bfm-lille', name: "BFM Grand Lille", url: "https://www.bfmtv.com/rss/grand-lille/", active: true },
+                    { id: 'aisne-nouvelle', name: "L'Aisne Nouvelle", url: "https://aisnenouvelle.fr/rss.xml", active: true },
+                    { id: 'actu-nord', name: "Actu Nord", url: "https://feeds.feedburner.com/actu/kkcN", active: true },
+                    { id: '20min-lille', name: "20 Minutes Lille", url: "https://20minutes.fr/feeds/rss-lille.xml", active: true },
+                    { id: 'rf-pod1', name: "RF Pod 24883", url: "https://radiofrance-podcast.net/podcast09/rss_24883.xml", active: true },
+                    { id: 'rf-pod2', name: "RF Pod 24283", url: "https://radiofrance-podcast.net/podcast09/rss_24283.xml", active: true },
+                    { id: 'rf-pod3', name: "RF Pod 25437", url: "https://radiofrance-podcast.net/podcast09/rss_25437.xml", active: true },
+                    { id: 'rf-pod4', name: "RF Pod 25469", url: "https://radiofrance-podcast.net/podcast09/rss_25469.xml", active: true },
+                    { id: 'rf-pod5', name: "RF Pod 25191", url: "https://radiofrance-podcast.net/podcast09/rss_25191.xml", active: true },
+                    { id: 'yt-play1', name: "YT Playlist HDF", url: "https://www.youtube.com/feeds/videos.xml?playlist_id=PLAyKbxXX8PJyJ-xSHlVKf77bPL3wPcubT", active: true },
+                    { id: 'dm-ici-pic', name: "DM Ici Picardie", url: "https://www.dailymotion.com/rss/user/icipicardie", active: true },
+                    { id: 'yt-chan1', name: "YT Channel HDF 1", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCkIEMxZjqX_fiwSok0Uo9Pg", active: true },
+                    { id: 'yt-chan2', name: "YT Channel HDF 2", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCFC3nJ8GXl5yONe3tB_vhsw", active: true },
+                    { id: 'dm-actu-hdf', name: "DM Actu HDF", url: "https://www.dailymotion.com/rss/user/actu-hauts-de-france", active: true },
+                    { id: 'bsky-rss', name: "Bluesky RSS", url: "https://bsky.app/profile/did:plc:szbhzsncadyh22lebcvz3qkl/rss", active: true }
+                ],
 
-                for (let proxy of this.proxies) {
-                    this.log(`Test via ${proxy.name}...`, "info");
+                init() {
+                    this.sources.forEach(s => s.hasSucceeded = false);
+                    document.getElementById('source-count').textContent = this.sources.length;
+                    this.renderSourceList();
+                    this.updateSettings();
+                    this.manualScan();
+                    this.log("Moteur V4.1 : Fenêtre d'observation 8 jours activée.", "info");
+                },
+
+                renderSourceList() {
+                    const statusEl = document.getElementById('source-status');
+                    statusEl.innerHTML = this.sources.map(s => `
+                        <div class="source-item">
+                            <span class="source-name" title="${s.name}">${s.name}</span>
+                            <div class="source-controls">
+                                <input type="checkbox" ${s.active ? 'checked' : ''} onchange="App.toggleSource('${s.id}')">
+                                <span id="dot-${s.id}" class="dot ${s.hasSucceeded ? 'ok' : ''}"></span>
+                            </div>
+                        </div>
+                    `).join('');
+                },
+
+                toggleSource(id) {
+                    const src = this.sources.find(s => s.id === id);
+                    if (src) {
+                        src.active = !src.active;
+                        this.log(`${src.name} : ${src.active ? 'Activé' : 'Désactivé'}`, "info");
+                        this.rebuildFeed();
+                    }
+                },
+
+                updateSettings() {
+                    this.config.freq = parseInt(document.getElementById('freq-select').value);
+                    this.config.historyHours = parseInt(document.getElementById('hist-select').value);
+                    if (this.timer) clearInterval(this.timer);
+                    this.timer = setInterval(() => this.manualScan(), this.config.freq);
+                    this.rebuildFeed(); 
+                },
+
+                log(msg, type = '') {
+                    const el = document.getElementById('logs');
+                    if(!el) return;
+                    const div = document.createElement('div');
+                    div.className = `log-entry ${type}`;
+                    div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+                    el.prepend(div);
+                },
+
+                updateDot(id, status) {
+                    const src = this.sources.find(s => s.id === id);
+                    const dot = document.getElementById(`dot-${id}`);
+                    if (!dot || !src) return;
+                    if (status === 'ok') {
+                        src.hasSucceeded = true;
+                        dot.className = 'dot ok';
+                    } else if (!src.hasSucceeded) {
+                        dot.className = 'dot err';
+                    }
+                },
+
+                async manualScan(isForced = false) {
+                    if (isForced) {
+                        this.data = [];
+                        this.registry.clear();
+                        document.getElementById('feed').innerHTML = '<div style="text-align:center; padding-top:100px; color:#444;"><h2>SCAN PROFOND (8 JOURS) EN COURS...</h2></div>';
+                    }
+                    await Promise.allSettled(this.sources.map(src => {
+                        if (src.active) return this.fetchSource(src);
+                        return Promise.resolve();
+                    }));
+                },
+
+                async fetchSource(src) {
                     try {
-                        const res = await fetch(proxy.url(this.targetUrl), { 
-                            method: 'GET',
-                            headers: { 'Accept': 'application/xml, text/xml, */*' }
-                        });
-
-                        if (res.ok) {
-                            let text = await res.text();
-                            
-                            // Unwrapping AllOrigins
-                            if (text.startsWith('{')) {
-                                const j = JSON.parse(text);
-                                text = j.contents;
-                            }
-
-                            if (text && text.includes('<item>')) {
-                                feedData = text;
-                                this.log(`${proxy.name} CONNECTÉ`, "success");
-                                break; 
-                            }
+                        const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(src.url)}&t=${Date.now()}`);
+                        const data = await res.json();
+                        const parser = new DOMParser();
+                        const xml = parser.parseFromString(data.contents, "text/xml");
+                        let nodes = Array.from(xml.querySelectorAll("item"));
+                        if (nodes.length === 0) nodes = Array.from(xml.querySelectorAll("entry"));
+                        
+                        if (nodes.length > 0) {
+                            const items = nodes.map(i => {
+                                const title = i.querySelector("title")?.textContent || "Sans titre";
+                                const description = i.querySelector("description")?.textContent || i.querySelector("summary")?.textContent || "";
+                                const link = i.querySelector("link")?.textContent || i.querySelector("link")?.getAttribute("href") || "#";
+                                const pubDate = i.querySelector("pubDate")?.textContent || i.querySelector("published")?.textContent || i.querySelector("updated")?.textContent;
+                                return { t: title.trim(), d: description.trim(), l: link, date: pubDate, s: src.name, sid: src.id };
+                            });
+                            this.updateDot(src.id, 'ok');
+                            this.processItems(items);
+                        } else {
+                            this.updateDot(src.id, 'err');
                         }
                     } catch (e) {
-                        this.log(`${proxy.name} ÉCHEC`, "err");
+                        this.updateDot(src.id, 'err');
                     }
-                }
+                },
 
-                if (feedData) {
-                    this.processXml(feedData);
-                } else {
-                    this.log("ALERTE : Blocage serveur persistant", "err");
-                    document.getElementById('status-msg').textContent = "ERREUR DE RÉCEPTION";
-                    document.getElementById('status-msg').style.color = "var(--fail)";
-                }
-
-                this.isScanning = false;
-                document.getElementById('scan-btn').disabled = false;
-            },
-
-            processXml(xmlString) {
-                try {
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(xmlString, "text/xml");
-                    const items = Array.from(doc.querySelectorAll("item"));
-                    
-                    let newItems = 0;
-                    items.forEach(i => {
-                        const title = i.querySelector("title")?.textContent;
-                        const link = i.querySelector("link")?.textContent;
-                        const desc = i.querySelector("description")?.textContent;
-                        const pubDate = i.querySelector("pubDate")?.textContent;
-
-                        if (title && !this.registry.has(title)) {
-                            this.registry.add(title);
-                            this.data.push({
-                                t: title,
-                                l: link,
-                                d: desc,
-                                time: pubDate ? new Date(pubDate).getTime() : Date.now()
-                            });
-                            newItems++;
+                processItems(items) {
+                    let added = false;
+                    items.forEach(item => {
+                        const itemDate = new Date(item.date).getTime();
+                        if (isNaN(itemDate)) return;
+                        const id = btoa(unescape(encodeURIComponent(item.t + item.s))).substring(0, 32);
+                        if (!this.registry.has(id)) {
+                            this.registry.add(id);
+                            this.data.push({ ...item, timestamp: itemDate });
+                            added = true;
                         }
                     });
+                    if (added) this.rebuildFeed();
+                },
 
-                    if (newItems > 0) {
-                        this.render();
-                        this.log(`${newItems} nouvelles dépêches`, "success");
-                    }
-                } catch (err) {
-                    this.log("Erreur de décodage flux", "err");
-                }
-            },
+                rebuildFeed() {
+                    const feed = document.getElementById('feed');
+                    const cutoff = Date.now() - (this.config.historyHours * 3600000);
+                    const filteredData = this.data
+                        .filter(item => {
+                            const src = this.sources.find(s => s.name === item.s);
+                            return item.timestamp >= cutoff && src && src.active;
+                        })
+                        .sort((a, b) => b.timestamp - a.timestamp);
 
-            render() {
-                const feed = document.getElementById('feed');
-                feed.innerHTML = '';
-                
-                this.data.sort((a,b) => b.time - a.time).forEach(item => {
-                    const d = new Date(item.time);
-                    const card = document.createElement('div');
-                    card.className = 'news-card';
-                    card.innerHTML = `
-                        <div class="meta"><span>FRANCE BLEU NORD</span><span>${d.getHours()}:${d.getMinutes().toString().padStart(2,'0')}</span></div>
-                        <div class="title">${item.t}</div>
-                        <div class="desc">${item.d ? item.d.replace(/<[^>]*>?/gm, '').substring(0, 150) : ""}...</div>
-                    `;
-                    card.onclick = () => {
-                        document.getElementById('modal-text').innerHTML = `
-                            <h2 style="color:white; margin-bottom:15px;">${item.t}</h2>
-                            <p style="color:#aaa; line-height:1.6;">${item.d || ""}</p>
-                            <br><a href="${item.l}" target="_blank" style="color:var(--accent)">LIRE L'ARTICLE SOURCE ↗</a>
+                    feed.innerHTML = filteredData.length === 0 ? '<div style="text-align:center; padding-top:100px; color:#444;"><h2>AUCUNE DÉPÊCHE RÉCENTE</h2></div>' : '';
+                    filteredData.forEach(item => {
+                        const card = document.createElement('div');
+                        card.className = 'news-card';
+                        const d = new Date(item.timestamp);
+                        const timeStr = `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')} - ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+                        card.innerHTML = `
+                            <div class="meta"><span class="source-badge">${item.s}</span><span class="time-badge">${timeStr}</span></div>
+                            <h3 class="title">${item.t}</h3>
+                            <p class="desc">${(item.d || "").replace(/<[^>]*>?/gm, '').substring(0, 160)}...</p>
                         `;
-                        document.getElementById('modal').style.display = 'flex';
-                    };
-                    feed.appendChild(card);
-                });
-                document.getElementById('total-count').textContent = this.data.length;
-            },
+                        card.onclick = () => this.openModal(item);
+                        feed.appendChild(card);
+                    });
+                    document.getElementById('total-count').textContent = filteredData.length;
+                },
 
-            closeModal() { document.getElementById('modal').style.display = 'none'; }
-        };
+                openModal(item) {
+                    const modalText = document.getElementById('modal-text');
+                    modalText.innerHTML = `
+                        <h3 style="color:var(--accent)">${item.s}</h3>
+                        <h1 style="margin:10px 0 20px 0; color:white; font-size:1.4rem;">${item.t}</h1>
+                        <div style="line-height:1.6; color:#ccc; font-size:0.95rem;">${item.d}</div>
+                        <br><a href="${item.l}" target="_blank" style="display:inline-block; background:var(--accent); color:white; padding:10px 20px; border-radius:4px; font-weight:bold; text-decoration:none;">VOIR L'ORIGINAL ↗</a>
+                    `;
+                    document.getElementById('modal').style.display = 'flex';
+                },
 
-        window.onload = () => App.init();
+                closeModal() { document.getElementById('modal').style.display = 'none'; },
+
+                copyNews() {
+                    const cutoff = Date.now() - (this.config.historyHours * 3600000);
+                    const txt = this.data
+                        .filter(item => {
+                            const src = this.sources.find(s => s.name === item.s);
+                            return item.timestamp >= cutoff && src && src.active;
+                        })
+                        .sort((a,b) => b.timestamp - a.timestamp)
+                        .map(i => {
+                            const d = new Date(i.timestamp);
+                            return `[${d.toLocaleDateString()} ${d.toLocaleTimeString()}] [${i.s}] ${i.t}`;
+                        }).join('\n');
+                    if (navigator.clipboard) navigator.clipboard.writeText(txt).then(() => this.log("Synthèse copiée !", "success"));
+                }
+            };
+            window.App = App;
+            window.onload = () => App.init();
+        }
     </script>
 </body>
 </html>
