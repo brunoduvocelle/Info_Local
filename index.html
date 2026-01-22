@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>AFP PRO - Veille Nord (V3.2 Force)</title>
+    <style>
+        :root {
+            --bg: #050505; --panel: #111; --border: #2a2a2a;
+            --accent: #0070f3; --text: #e0e0e0; --success: #00ff41; --fail: #ff3333;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text);
+            display: grid; grid-template-columns: 1fr 340px; height: 100vh; overflow: hidden;
+        }
+        @media (max-width: 900px) {
+            body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; overflow-y: auto; }
+            aside { border-left: none !important; order: -1; height: auto !important; }
+        }
+        #feed { padding: 20px; overflow-y: auto; background: radial-gradient(circle at top left, #1a1a1a 0%, var(--bg) 40%); }
+        .news-card {
+            background: var(--panel); border: 1px solid var(--border); padding: 15px; margin-bottom: 12px; 
+            border-radius: 6px; border-left: 3px solid #444; cursor: pointer; animation: fadeIn 0.4s ease;
+        }
+        .news-card:hover { border-left-color: var(--accent); background: #161616; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; } }
+        .meta { display: flex; justify-content: space-between; font-size: 11px; color: #777; margin-bottom: 6px; font-weight: bold; }
+        .title { font-size: 1.05rem; color: #fff; margin-bottom: 6px; line-height: 1.3; }
+        .desc { font-size: 0.85rem; color: #999; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        aside { background: #000; border-left: 1px solid var(--border); display: flex; flex-direction: column; padding: 15px; gap: 15px; }
+        .panel-box { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+        .stat-big { font-size: 24px; font-weight: bold; color: var(--success); }
+        .stat-label { font-size: 9px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: #333; display: inline-block; margin-right: 5px; }
+        .dot.ok { background: var(--success); box-shadow: 0 0 5px var(--success); }
+        .dot.err { background: var(--fail); box-shadow: 0 0 5px var(--fail); }
+        .log-container { flex: 1; min-height: 120px; overflow-y: auto; font-family: monospace; font-size: 10px; color: #555; border-top: 1px solid var(--border); padding-top: 10px; }
+        .log-entry { margin-bottom: 3px; border-bottom: 1px solid #111; }
+        .log-entry.info { color: #0070f3; }
+        .log-entry.err { color: var(--fail); }
+        button { width: 100%; padding: 10px; background: var(--accent); color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11px; }
+        button:disabled { opacity: 0.3; }
+        #modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-content { width: 90%; max-width: 650px; background: #111; padding: 25px; border-radius: 10px; border: 1px solid #333; }
+    </style>
+</head>
+<body>
+
+    <main id="feed">
+        <div style="text-align:center; padding-top:100px; color:#444;">
+            <h2 id="status-msg">FORÇAGE PROTOCOLE...</h2>
+            <p>Tentative multi-canaux en cours</p>
+        </div>
+    </main>
+
+    <aside>
+        <div class="panel-box">
+            <div class="stat-label">Flux Actualisé</div>
+            <div id="total-count" class="stat-big">0</div>
+            <button id="scan-btn" onclick="App.manualScan()">RELANCER LE FORÇAGE</button>
+        </div>
+
+        <div class="panel-box">
+            <div class="stat-label">Réseau Diagnostic</div>
+            <div id="proxy-status" style="font-size: 10px; margin-top: 5px;"></div>
+        </div>
+
+        <div class="log-container" id="logs"></div>
+    </aside>
+
+    <div id="modal">
+        <div class="modal-content">
+            <button onclick="App.closeModal()" style="margin-bottom:15px; background:#222;">← FERMER</button>
+            <div id="modal-text"></div>
+        </div>
+    </div>
+
+    <script>
+        const App = {
+            data: [],
+            registry: new Set(),
+            isScanning: false,
+            targetUrl: "https://www.francebleu.fr/rss/radio/nord/actu",
+            
+            // Stratégie de contournement agressive
+            proxies: [
+                { name: "Bridge-1", url: u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}` },
+                { name: "Bridge-2", url: u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}&_=${Date.now()}` },
+                { name: "Bridge-3", url: u => `https://thingproxy.freeboard.io/fetch/${u}` },
+                { name: "Bridge-4", url: u => `https://corsproxy.io/?${encodeURIComponent(u)}` }
+            ],
+
+            init() {
+                this.log("Logiciel de veille initialisé", "info");
+                this.manualScan();
+                setInterval(() => this.manualScan(), 120000); // Auto-refresh 2min
+            },
+
+            log(msg, type = '') {
+                const el = document.getElementById('logs');
+                const div = document.createElement('div');
+                div.className = `log-entry ${type}`;
+                div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+                el.prepend(div);
+            },
+
+            async manualScan() {
+                if(this.isScanning) return;
+                this.isScanning = true;
+                document.getElementById('scan-btn').disabled = true;
+                document.getElementById('proxy-status').innerHTML = '';
+                
+                let feedData = null;
+
+                for (let proxy of this.proxies) {
+                    this.log(`Test via ${proxy.name}...`, "info");
+                    try {
+                        const res = await fetch(proxy.url(this.targetUrl), { 
+                            method: 'GET',
+                            headers: { 'Accept': 'application/xml, text/xml, */*' }
+                        });
+
+                        if (res.ok) {
+                            let text = await res.text();
+                            
+                            // Unwrapping AllOrigins
+                            if (text.startsWith('{')) {
+                                const j = JSON.parse(text);
+                                text = j.contents;
+                            }
+
+                            if (text && text.includes('<item>')) {
+                                feedData = text;
+                                this.log(`${proxy.name} CONNECTÉ`, "success");
+                                break; 
+                            }
+                        }
+                    } catch (e) {
+                        this.log(`${proxy.name} ÉCHEC`, "err");
+                    }
+                }
+
+                if (feedData) {
+                    this.processXml(feedData);
+                } else {
+                    this.log("ALERTE : Blocage serveur persistant", "err");
+                    document.getElementById('status-msg').textContent = "ERREUR DE RÉCEPTION";
+                    document.getElementById('status-msg').style.color = "var(--fail)";
+                }
+
+                this.isScanning = false;
+                document.getElementById('scan-btn').disabled = false;
+            },
+
+            processXml(xmlString) {
+                try {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(xmlString, "text/xml");
+                    const items = Array.from(doc.querySelectorAll("item"));
+                    
+                    let newItems = 0;
+                    items.forEach(i => {
+                        const title = i.querySelector("title")?.textContent;
+                        const link = i.querySelector("link")?.textContent;
+                        const desc = i.querySelector("description")?.textContent;
+                        const pubDate = i.querySelector("pubDate")?.textContent;
+
+                        if (title && !this.registry.has(title)) {
+                            this.registry.add(title);
+                            this.data.push({
+                                t: title,
+                                l: link,
+                                d: desc,
+                                time: pubDate ? new Date(pubDate).getTime() : Date.now()
+                            });
+                            newItems++;
+                        }
+                    });
+
+                    if (newItems > 0) {
+                        this.render();
+                        this.log(`${newItems} nouvelles dépêches`, "success");
+                    }
+                } catch (err) {
+                    this.log("Erreur de décodage flux", "err");
+                }
+            },
+
+            render() {
+                const feed = document.getElementById('feed');
+                feed.innerHTML = '';
+                
+                this.data.sort((a,b) => b.time - a.time).forEach(item => {
+                    const d = new Date(item.time);
+                    const card = document.createElement('div');
+                    card.className = 'news-card';
+                    card.innerHTML = `
+                        <div class="meta"><span>FRANCE BLEU NORD</span><span>${d.getHours()}:${d.getMinutes().toString().padStart(2,'0')}</span></div>
+                        <div class="title">${item.t}</div>
+                        <div class="desc">${item.d ? item.d.replace(/<[^>]*>?/gm, '').substring(0, 150) : ""}...</div>
+                    `;
+                    card.onclick = () => {
+                        document.getElementById('modal-text').innerHTML = `
+                            <h2 style="color:white; margin-bottom:15px;">${item.t}</h2>
+                            <p style="color:#aaa; line-height:1.6;">${item.d || ""}</p>
+                            <br><a href="${item.l}" target="_blank" style="color:var(--accent)">LIRE L'ARTICLE SOURCE ↗</a>
+                        `;
+                        document.getElementById('modal').style.display = 'flex';
+                    };
+                    feed.appendChild(card);
+                });
+                document.getElementById('total-count').textContent = this.data.length;
+            },
+
+            closeModal() { document.getElementById('modal').style.display = 'none'; }
+        };
+
+        window.onload = () => App.init();
+    </script>
+</body>
+</html>
