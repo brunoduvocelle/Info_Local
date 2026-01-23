@@ -63,12 +63,17 @@
             padding: 6px; border-radius: 4px; font-size: 11px; cursor: pointer;
         }
 
-        .source-list { display: grid; grid-template-columns: 1fr; gap: 5px; margin-top: 10px; max-height: 300px; overflow-y: auto; padding-right: 5px; }
+        .source-list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+        .btn-toggle-all { background: none; border: 1px solid #333; color: #888; padding: 2px 6px; font-size: 8px; width: auto; margin: 0; cursor: pointer; border-radius: 3px; }
+        .btn-toggle-all:hover { color: var(--accent); border-color: var(--accent); }
+
+        .source-list { display: grid; grid-template-columns: 1fr; gap: 5px; margin-top: 5px; max-height: 300px; overflow-y: auto; padding-right: 5px; }
         .source-item { 
             display: flex; justify-content: space-between; align-items: center; 
             font-size: 9px; padding: 5px 8px; background: #080808; border-radius: 4px; border: 1px solid #1a1a1a;
         }
-        .source-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+        .source-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+        .source-count-badge { color: #555; margin-left: 4px; font-weight: normal; }
         .source-controls { display: flex; align-items: center; gap: 8px; }
         
         .dot { width: 8px; height: 8px; border-radius: 50%; background: #333; transition: all 0.3s ease; flex-shrink: 0; }
@@ -141,7 +146,10 @@
         </div>
 
         <div class="panel-box">
-            <div class="stat-label">SOURCES ACTIVES (<span id="source-count">0</span>)</div>
+            <div class="source-list-header">
+                <div class="stat-label">SOURCES ACTIVES (<span id="source-count">0</span>)</div>
+                <button class="btn-toggle-all" onclick="App.toggleAllSources()">TOUT ON/OFF</button>
+            </div>
             <div class="source-list" id="source-status"></div>
         </div>
 
@@ -217,15 +225,19 @@
 
                 renderSourceList() {
                     const statusEl = document.getElementById('source-status');
-                    statusEl.innerHTML = this.sources.map(s => `
+                    const cutoff = Date.now() - (this.config.historyHours * 3600000);
+                    
+                    statusEl.innerHTML = this.sources.map(s => {
+                        const count = this.data.filter(item => item.sid === s.id && item.timestamp >= cutoff).length;
+                        return `
                         <div class="source-item">
-                            <span class="source-name" title="${s.name}">${s.name}</span>
+                            <span class="source-name" title="${s.name}">${s.name} <span class="source-count-badge">(${count})</span></span>
                             <div class="source-controls">
                                 <input type="checkbox" ${s.active ? 'checked' : ''} onchange="App.toggleSource('${s.id}')">
                                 <span id="dot-${s.id}" class="dot ${s.hasSucceeded ? 'ok' : ''}"></span>
                             </div>
                         </div>
-                    `).join('');
+                    `}).join('');
                 },
 
                 toggleSource(id) {
@@ -235,6 +247,15 @@
                         this.log(`${src.name} : ${src.active ? 'Activé' : 'Désactivé'}`, "info");
                         this.rebuildFeed();
                     }
+                },
+
+                toggleAllSources() {
+                    const allActive = this.sources.every(s => s.active);
+                    const newState = !allActive;
+                    this.sources.forEach(s => s.active = newState);
+                    this.log(`Toutes les sources : ${newState ? 'Activées' : 'Désactivées'}`, "info");
+                    this.renderSourceList();
+                    this.rebuildFeed();
                 },
 
                 updateSettings() {
@@ -318,7 +339,9 @@
                             added = true;
                         }
                     });
-                    if (added) this.rebuildFeed();
+                    if (added) {
+                        this.rebuildFeed();
+                    }
                 },
 
                 rebuildFeed() {
@@ -326,7 +349,7 @@
                     const cutoff = Date.now() - (this.config.historyHours * 3600000);
                     const filteredData = this.data
                         .filter(item => {
-                            const src = this.sources.find(s => s.name === item.s);
+                            const src = this.sources.find(s => s.id === item.sid);
                             return item.timestamp >= cutoff && src && src.active;
                         })
                         .sort((a, b) => b.timestamp - a.timestamp);
@@ -346,6 +369,7 @@
                         feed.appendChild(card);
                     });
                     document.getElementById('total-count').textContent = filteredData.length;
+                    this.renderSourceList(); // Rafraîchir les compteurs par source
                 },
 
                 openModal(item) {
@@ -366,7 +390,7 @@
                     const cutoff = Date.now() - (this.config.historyHours * 3600000);
                     const txt = this.data
                         .filter(item => {
-                            const src = this.sources.find(s => s.name === item.s);
+                            const src = this.sources.find(s => s.id === item.sid);
                             return item.timestamp >= cutoff && src && src.active;
                         })
                         .sort((a,b) => b.timestamp - a.timestamp)
@@ -379,7 +403,6 @@
                     if (navigator.clipboard) {
                         navigator.clipboard.writeText(txt).then(() => {
                             this.log("Synthèse (Titres + Contenus) copiée !", "success");
-                            // Feedback visuel du bouton
                             if (btn) {
                                 btn.style.backgroundColor = 'var(--success)';
                                 setTimeout(() => btn.style.backgroundColor = '', 1000);
