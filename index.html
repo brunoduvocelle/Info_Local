@@ -329,11 +329,18 @@
                     const statusEl = document.getElementById('source-status');
                     const cutoff = Date.now() - (this.config.historyHours * 3600000);
                     
-                    statusEl.innerHTML = this.sources.map(s => {
-                        const count = this.data.filter(item => item.sid === s.id && item.timestamp >= cutoff).length;
+                    // Calcul des volumes et tri automatique décroissant
+                    const sortedSources = [...this.sources]
+                        .map(s => {
+                            const count = this.data.filter(item => item.sid === s.id && item.timestamp >= cutoff).length;
+                            return { ...s, count };
+                        })
+                        .sort((a, b) => b.count - a.count);
+
+                    statusEl.innerHTML = sortedSources.map(s => {
                         return `
                         <div class="source-item">
-                            <span class="source-name" title="${s.url}">${s.name} <span class="source-count-badge">(${count})</span></span>
+                            <span class="source-name" title="${s.url}">${s.name} <span class="source-count-badge">(${s.count})</span></span>
                             <div class="source-controls">
                                 <input type="checkbox" ${s.active ? 'checked' : ''} onchange="App.toggleSource('${s.id}')">
                                 <span id="dot-${s.id}" class="dot ${s.hasSucceeded ? 'ok' : ''}"></span>
@@ -365,7 +372,7 @@
                     if (this.timer) clearInterval(this.timer);
                     this.timer = setInterval(() => this.manualScan(), this.config.freq);
                     this.rebuildFeed(); 
-                    this.renderSourceList(); // <-- Ajout pour mise à jour immédiate des indicateurs
+                    this.renderSourceList();
                 },
 
                 log(msg, type = '') {
